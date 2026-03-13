@@ -1,7 +1,8 @@
 import { MapPin } from 'lucide-react';
-import { CITIES } from '../utils/constants';
+import type { CityData } from '../utils/constants';
 
 interface LocationPanelProps {
+    scenes: CityData[];
     selectedCity: number;
     selectedLandmark: number;
     onCityChange: (index: number) => void;
@@ -10,11 +11,12 @@ interface LocationPanelProps {
 }
 
 export default function LocationPanel({
+    scenes,
     selectedCity, selectedLandmark,
     onCityChange, onLandmarkChange,
     compact = false,
 }: LocationPanelProps) {
-    const city = CITIES[selectedCity];
+    const city = scenes[selectedCity];
     const landmarks = city?.landmarks || [];
 
     return (
@@ -33,7 +35,7 @@ export default function LocationPanel({
                             onChange={(e) => onCityChange(parseInt(e.target.value))}
                         >
                             <option value={-1}>---</option>
-                            {CITIES.map((c, i) => (
+                            {scenes.map((c, i) => (
                                 <option key={i} value={i}>{c.name}</option>
                             ))}
                         </select>

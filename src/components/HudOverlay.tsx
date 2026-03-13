@@ -43,8 +43,8 @@ export default function HudOverlay({
                         <div className="brand-icon-inner" />
                     </div>
                     <div>
-                        <div className="brand-title">DORJAN</div>
-                        <div className="brand-subtitle">No Place Left Behind</div>
+                        <div className="brand-title">MADAMA</div>
+                        <div className="brand-subtitle">Geospatial Intelligence Platform</div>
                     </div>
                 </div>
             </div>

@@ -15,9 +15,12 @@ import {
     Ray,
 } from 'cesium';
 import type { Landmark } from '../utils/constants';
+import type { WorldMode } from '../utils/constants';
 
 const ION_TOKEN = (import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined)?.trim();
-const GOOGLE_3D_TILES_ASSET_ID = Number(import.meta.env.VITE_GOOGLE_3D_TILES_ASSET_ID ?? '2275207');
+const EARTH_3D_TILES_ASSET_ID = Number(import.meta.env.VITE_GOOGLE_3D_TILES_ASSET_ID ?? '2275207');
+const MOON_3D_TILES_ASSET_ID = Number(import.meta.env.VITE_MOON_3D_TILES_ASSET_ID ?? '2684829');
+const MARS_3D_TILES_ASSET_ID = Number(import.meta.env.VITE_MARS_3D_TILES_ASSET_ID ?? '3644333');
 
 const arcgisProvider = new UrlTemplateImageryProvider({
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -26,31 +29,50 @@ const arcgisProvider = new UrlTemplateImageryProvider({
 
 const defaultTerrain = new EllipsoidTerrainProvider();
 
+function getSpawnView(worldMode: WorldMode) {
+    if (worldMode === 'moon') {
+        return { lat: 8, lng: 20, alt: 3_200_000 };
+    }
+    if (worldMode === 'mars') {
+        return { lat: 10, lng: 25, alt: 6_000_000 };
+    }
+    return { lat: 12, lng: 20, alt: 18_000_000 };
+}
+
 interface GlobeViewerProps {
     onCameraMove?: (lat: number, lng: number, alt: number, centerLat?: number, centerLng?: number) => void;
     flyToTarget?: Landmark | null;
+    worldMode?: WorldMode;
     children?: ReactNode;
 }
 
-export default function GlobeViewer({ onCameraMove, flyToTarget, children }: GlobeViewerProps) {
+export default function GlobeViewer({ onCameraMove, flyToTarget, worldMode = 'earth', children }: GlobeViewerProps) {
     const viewerRef = useRef<{ cesiumElement?: CesiumViewer | null }>(null);
     const [tileStatus, setTileStatus] = useState<string>('loading');
+    const activeTilesetRef = useRef<Cesium3DTileset | null>(null);
 
-    // Load Google Photorealistic 3D Tiles
+    // Load world tiles (Earth / Moon / Mars)
     useEffect(() => {
         if (!ION_TOKEN) {
             setTileStatus('FAILED: missing VITE_CESIUM_ION_TOKEN');
             return;
         }
 
-        if (!Number.isFinite(GOOGLE_3D_TILES_ASSET_ID)) {
-            setTileStatus('FAILED: invalid VITE_GOOGLE_3D_TILES_ASSET_ID');
+        const assetByWorld: Record<WorldMode, number> = {
+            earth: EARTH_3D_TILES_ASSET_ID,
+            moon: MOON_3D_TILES_ASSET_ID,
+            mars: MARS_3D_TILES_ASSET_ID,
+        };
+
+        const selectedAssetId = assetByWorld[worldMode];
+
+        if (!Number.isFinite(selectedAssetId)) {
+            setTileStatus(`FAILED: invalid asset id for ${worldMode.toUpperCase()}`);
             return;
         }
 
         Ion.defaultAccessToken = ION_TOKEN;
 
-        let tileset: Cesium3DTileset | null = null;
         let destroyed = false;
         let attempts = 0;
         let timer: number | undefined;
@@ -69,23 +91,47 @@ export default function GlobeViewer({ onCameraMove, flyToTarget, children }: Glo
             }
 
             try {
-                setTileStatus(`fetching asset ${GOOGLE_3D_TILES_ASSET_ID}...`);
-                tileset = await Cesium3DTileset.fromIonAssetId(GOOGLE_3D_TILES_ASSET_ID);
-                if (!destroyed && !viewer.isDestroyed()) {
-                    viewer.scene.primitives.add(tileset);
+                const showEarthBase = worldMode === 'earth';
+                viewer.scene.globe.show = showEarthBase;
+                if (viewer.imageryLayers.length > 0) {
+                    viewer.imageryLayers.get(0).show = showEarthBase;
+                }
 
-                    // Important: keep globe + imagery as fallback so browser doesn't go black
-                    // when tiles are unavailable in current view / still streaming.
+                setTileStatus(`fetching ${worldMode.toUpperCase()} asset ${selectedAssetId}...`);
+
+                const tileset = await Cesium3DTileset.fromIonAssetId(selectedAssetId);
+
+                if (!destroyed && !viewer.isDestroyed()) {
+                    if (activeTilesetRef.current) {
+                        viewer.scene.primitives.remove(activeTilesetRef.current);
+                        activeTilesetRef.current = null;
+                    }
+
+                    viewer.scene.primitives.add(tileset);
+                    activeTilesetRef.current = tileset;
+
                     await viewer.zoomTo(tileset);
-                    setTileStatus('loaded');
+
+                    const spawn = getSpawnView(worldMode);
+                    viewer.camera.setView({
+                        destination: Cartesian3.fromDegrees(spawn.lng, spawn.lat, spawn.alt),
+                        orientation: {
+                            heading: CesiumMath.toRadians(0),
+                            pitch: CesiumMath.toRadians(-90),
+                            roll: 0,
+                        },
+                    });
+
+                    setTileStatus(`loaded ${worldMode.toUpperCase()}`);
                 }
             } catch (err: any) {
                 console.error('3D Tiles error:', err);
                 setTileStatus(`FAILED: ${err?.message || err}`);
-                // Ensure baseline globe remains visible on failures.
                 viewer.scene.globe.show = true;
                 if (viewer.imageryLayers.length === 0) {
                     viewer.imageryLayers.addImageryProvider(arcgisProvider);
+                } else {
+                    viewer.imageryLayers.get(0).show = true;
                 }
             }
         };
@@ -96,11 +142,12 @@ export default function GlobeViewer({ onCameraMove, flyToTarget, children }: Glo
             destroyed = true;
             if (timer) window.clearTimeout(timer);
             const viewer = viewerRef.current?.cesiumElement;
-            if (tileset && viewer && !viewer.isDestroyed()) {
-                viewer.scene.primitives.remove(tileset);
+            if (activeTilesetRef.current && viewer && !viewer.isDestroyed()) {
+                viewer.scene.primitives.remove(activeTilesetRef.current);
+                activeTilesetRef.current = null;
             }
         };
-    }, []);
+    }, [worldMode]);
 
     // Camera movement callback
     useEffect(() => {
@@ -225,7 +272,7 @@ export default function GlobeViewer({ onCameraMove, flyToTarget, children }: Glo
     return (
         <>
             {/* Debug banner — remove once working */}
-            {tileStatus !== 'loaded' && (
+            {!tileStatus.startsWith('loaded') && (
                 <div style={{
                     position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
                     zIndex: 9999, background: tileStatus.startsWith('FAILED') ? '#ff2244' : '#008080',

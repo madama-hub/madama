@@ -7,7 +7,11 @@
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "tsc -b && node ./node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
-    "preview": "node ./node_modules/vite/bin/vite.js preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "backend:dev": "python3 -m uvicorn backend.app.main:app --reload --port 8000",
+    "backend:snapshot": "python3 -m backend.scripts.materialize_snapshot",
+    "backend:evaluate": "python3 -m backend.scripts.evaluate_model",
+    "backend:collect": "python3 -m backend.scripts.collect_snapshots --interval 300"
   },
   "dependencies": {
     "cesium": "^1.138.0",

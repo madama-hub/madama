@@ -14,6 +14,10 @@ interface FlightData {
     onGround: boolean;
 }
 
+interface FlightsApiResponse {
+    flights?: FlightData[];
+}
+
 interface FlightLayerProps {
     visible: boolean;
     detectMode: boolean;
@@ -26,24 +30,12 @@ export default function FlightLayer({ visible, detectMode, onCountUpdate }: Flig
 
     const fetchFlights = async () => {
         try {
-            const res = await fetch(API_ENDPOINTS.OPENSKY);
-            if (!res.ok) throw new Error('OpenSky API unavailable');
-            const data = await res.json();
+            const res = await fetch(API_ENDPOINTS.FLIGHTS_EVENTS);
+            if (!res.ok) throw new Error('Flights backend unavailable');
+            const data = (await res.json()) as FlightsApiResponse;
 
-            if (data.states) {
-                const parsed: FlightData[] = data.states
-                    .filter((s: any[]) => s[5] != null && s[6] != null && !s[8])
-                    .slice(0, 2000)
-                    .map((s: any[]) => ({
-                        icao24: s[0],
-                        callsign: (s[1] || '').trim(),
-                        lat: s[6],
-                        lng: s[5],
-                        alt: (s[7] || 0),
-                        heading: s[10] || 0,
-                        velocity: s[9] || 0,
-                        onGround: s[8],
-                    }));
+            if (Array.isArray(data.flights)) {
+                const parsed = data.flights;
                 setFlights(parsed);
                 onCountUpdate(parsed.length);
             }

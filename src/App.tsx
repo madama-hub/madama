@@ -6,19 +6,34 @@ import StylePresets from './components/StylePresets';
 import LeftSidebar from './components/LeftSidebar';
 import type { DataLayerState } from './components/LeftSidebar';
 import RightSidebar from './components/RightSidebar';
-import SatelliteLayer from './layers/SatelliteLayer';
 import FlightLayer from './layers/FlightLayer';
-import MilitaryFlightLayer from './layers/MilitaryFlightLayer';
 import TrafficLayer from './layers/TrafficLayer';
 import CCTVLayer from './layers/CCTVLayer';
 import type { CameraPoint } from './layers/CCTVLayer';
 import EarthquakeLayer from './layers/EarthquakeLayer';
-import { CITIES, STYLE_PRESETS } from './utils/constants';
-import type { StylePresetId, Landmark } from './utils/constants';
+import DdosLayer from './layers/DdosLayer';
+import AlertLayer from './layers/AlertLayer';
+import MarsRoverLayer from './layers/MarsRoverLayer';
+import type { MarsRoverPoint } from './layers/MarsRoverLayer';
+import MoonMediaLayer from './layers/MoonMediaLayer';
+import MoonLroLayer from './layers/MoonLroLayer';
+import MoonScienceLayer from './layers/MoonScienceLayer';
+import MoonOrbitersLayer from './layers/MoonOrbitersLayer';
+import MoonSpiceLayer from './layers/MoonSpiceLayer';
+import MoonArtemisLayer from './layers/MoonArtemisLayer';
+import MoonSolarWeatherLayer from './layers/MoonSolarWeatherLayer';
+import MarsWeatherLayer from './layers/MarsWeatherLayer';
+import MarsMediaLayer from './layers/MarsMediaLayer';
+import MarsScienceLayer from './layers/MarsScienceLayer';
+import MarsOrbitersLayer from './layers/MarsOrbitersLayer';
+import MarsSolarWeatherLayer from './layers/MarsSolarWeatherLayer';
+import { SCENES_BY_WORLD, STYLE_PRESETS } from './utils/constants';
+import type { StylePresetId, Landmark, WorldMode } from './utils/constants';
 
 export default function App() {
   // Style presets
   const [activeStyle, setActiveStyle] = useState<StylePresetId>('normal');
+  const [worldMode, setWorldMode] = useState<WorldMode>('earth');
 
   // Camera state
   const [cameraLat, setCameraLat] = useState(30.2747);
@@ -34,12 +49,24 @@ export default function App() {
 
   // Data layers
   const [dataLayers, setDataLayers] = useState<DataLayerState>({
-    satellites: false,
     flights: false,
-    military: false,
     traffic: false,
     cctv: false,
     earthquakes: false,
+    ddos: false,
+    moonMedia: false,
+    moonLro: false,
+    moonScience: false,
+    moonOrbiters: false,
+    moonSpice: false,
+    moonArtemis: false,
+    moonSolarWeather: false,
+    marsRovers: false,
+    marsWeather: false,
+    marsMedia: false,
+    marsScience: false,
+    marsOrbiters: false,
+    marsSolarWeather: false,
   });
 
   const [layerCounts, setLayerCounts] = useState<Record<string, number>>({});
@@ -51,6 +78,7 @@ export default function App() {
     pageUrl?: string;
     thumbnail?: string;
   } | null>(null);
+  const [selectedMarsPhoto, setSelectedMarsPhoto] = useState<MarsRoverPoint | null>(null);
   const [earthCamCameras, setEarthCamCameras] = useState<CameraPoint[]>([]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
@@ -116,7 +144,6 @@ export default function App() {
 
   // Effects
   const [bloom, setBloom] = useState(false);
-  const [sharpen, setSharpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
   const [cleanUI, setCleanUI] = useState(false);
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
@@ -212,6 +239,9 @@ export default function App() {
       if (layer === 'cctv' && prev.cctv) {
         setSelectedCctv(null);
       }
+      if (layer === 'marsRovers' && prev.marsRovers) {
+        setSelectedMarsPhoto(null);
+      }
       return next;
     });
   }, []);
@@ -222,22 +252,33 @@ export default function App() {
   }, []);
 
   // Location changes
+  const activeScenes = SCENES_BY_WORLD[worldMode];
+
   const handleCityChange = useCallback((index: number) => {
     setSelectedCity(index);
     setSelectedLandmark(-1);
-    if (index >= 0 && CITIES[index]) {
-      const city = CITIES[index];
+    if (index >= 0 && activeScenes[index]) {
+      const city = activeScenes[index];
       setFlyToTarget(city.landmarks[0]);
     }
-  }, []);
+  }, [activeScenes]);
 
   const handleLandmarkChange = useCallback((index: number) => {
     setSelectedLandmark(index);
     if (index >= 0 && selectedCity >= 0) {
-      const landmark = CITIES[selectedCity]?.landmarks[index];
+      const landmark = activeScenes[selectedCity]?.landmarks[index];
       if (landmark) setFlyToTarget(landmark);
     }
-  }, [selectedCity]);
+  }, [selectedCity, activeScenes]);
+
+  useEffect(() => {
+    setSelectedCity(0);
+    setSelectedLandmark(-1);
+    setFlyToTarget(null);
+    if (worldMode !== 'mars') {
+      setSelectedMarsPhoto(null);
+    }
+  }, [worldMode]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -255,7 +296,7 @@ export default function App() {
       const landmarkKeys = ['q', 'w', 'e', 'r', 't'];
       const lIndex = landmarkKeys.indexOf(e.key.toLowerCase());
       if (lIndex >= 0 && selectedCity >= 0) {
-        const landmark = CITIES[selectedCity]?.landmarks[lIndex];
+        const landmark = activeScenes[selectedCity]?.landmarks[lIndex];
         if (landmark) {
           setSelectedLandmark(lIndex);
           setFlyToTarget(landmark);
@@ -265,15 +306,16 @@ export default function App() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedCity]);
+  }, [selectedCity, activeScenes]);
 
   // Get style class for the globe
   const styleClass = activeStyle !== 'normal' ? `effect-${activeStyle}` : '';
-  const locationName = selectedCity >= 0 ? CITIES[selectedCity]?.name || '' : '';
-  const landmarkName = selectedLandmark >= 0 ? CITIES[selectedCity]?.landmarks[selectedLandmark]?.name || '' : '';
+  const locationName = selectedCity >= 0 ? activeScenes[selectedCity]?.name || '' : '';
+  const landmarkName = selectedLandmark >= 0 ? activeScenes[selectedCity]?.landmarks[selectedLandmark]?.name || '' : '';
+  const anomalyMonitoringActive = dataLayers.flights || dataLayers.traffic || dataLayers.earthquakes || dataLayers.ddos;
 
   return (
-    <div className={`app-container theme-${themeMode} ${cleanUI ? 'clean-ui' : ''} ${bloom ? 'bloom-active' : ''} ${sharpen ? 'sharpen-active' : ''}`}>
+    <div className={`app-container theme-${themeMode} ${cleanUI ? 'clean-ui' : ''} ${bloom ? 'bloom-active' : ''}`}>
       {/* Loading screen */}
       {loading && (
         <div className="loading-overlay">
@@ -290,41 +332,107 @@ export default function App() {
         <GlobeViewer
           onCameraMove={handleCameraMove}
           flyToTarget={flyToTarget}
+          worldMode={worldMode}
         >
-          <SatelliteLayer
-            visible={dataLayers.satellites}
-            detectMode={false}
-            onCountUpdate={(c) => handleCountUpdate('satellites', c)}
-          />
           <FlightLayer
-            visible={dataLayers.flights}
+            visible={worldMode === 'earth' && dataLayers.flights}
             detectMode={false}
             onCountUpdate={(c) => handleCountUpdate('flights', c)}
           />
-          <MilitaryFlightLayer
-            visible={dataLayers.military}
-            detectMode={false}
-            onCountUpdate={(c) => handleCountUpdate('military', c)}
-          />
           <TrafficLayer
-            visible={dataLayers.traffic}
+            visible={worldMode === 'earth' && dataLayers.traffic}
             centerLat={cameraLat}
             centerLng={cameraLng}
             onCountUpdate={(c) => handleCountUpdate('traffic', c)}
           />
           <CCTVLayer
-            visible={dataLayers.cctv}
+            visible={worldMode === 'earth' && dataLayers.cctv}
             showLabels={false}
             cameras={earthCamCameras}
             onCountUpdate={(c) => handleCountUpdate('cctv', c)}
-            onCameraSelect={(cam) => {
+            onCameraSelect={(cam: CameraPoint) => {
               setSelectedCctv(cam);
             }}
           />
           <EarthquakeLayer
-            visible={dataLayers.earthquakes}
+            visible={worldMode === 'earth' && dataLayers.earthquakes}
             detectMode={false}
             onCountUpdate={(c) => handleCountUpdate('earthquakes', c)}
+          />
+          <DdosLayer
+            visible={worldMode === 'earth' && dataLayers.ddos}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('ddos', c)}
+          />
+          <AlertLayer
+            visible={worldMode === 'earth' && anomalyMonitoringActive}
+            onCountUpdate={(c) => handleCountUpdate('alerts', c)}
+          />
+          <MoonMediaLayer
+            visible={worldMode === 'moon' && dataLayers.moonMedia}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonMedia', c)}
+          />
+          <MoonLroLayer
+            visible={worldMode === 'moon' && dataLayers.moonLro}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonLro', c)}
+          />
+          <MoonScienceLayer
+            visible={worldMode === 'moon' && dataLayers.moonScience}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonScience', c)}
+          />
+          <MoonOrbitersLayer
+            visible={worldMode === 'moon' && dataLayers.moonOrbiters}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonOrbiters', c)}
+          />
+          <MoonSpiceLayer
+            visible={worldMode === 'moon' && dataLayers.moonSpice}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonSpice', c)}
+          />
+          <MoonArtemisLayer
+            visible={worldMode === 'moon' && dataLayers.moonArtemis}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonArtemis', c)}
+          />
+          <MoonSolarWeatherLayer
+            visible={worldMode === 'moon' && dataLayers.moonSolarWeather}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('moonSolarWeather', c)}
+          />
+          <MarsRoverLayer
+            visible={worldMode === 'mars' && dataLayers.marsRovers}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsRovers', c)}
+            onPhotoSelect={(photo: MarsRoverPoint) => setSelectedMarsPhoto(photo)}
+          />
+          <MarsWeatherLayer
+            visible={worldMode === 'mars' && dataLayers.marsWeather}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsWeather', c)}
+          />
+          <MarsMediaLayer
+            visible={worldMode === 'mars' && dataLayers.marsMedia}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsMedia', c)}
+          />
+          <MarsScienceLayer
+            visible={worldMode === 'mars' && dataLayers.marsScience}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsScience', c)}
+          />
+          <MarsOrbitersLayer
+            visible={worldMode === 'mars' && dataLayers.marsOrbiters}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsOrbiters', c)}
+          />
+          <MarsSolarWeatherLayer
+            visible={worldMode === 'mars' && dataLayers.marsSolarWeather}
+            detectMode={false}
+            onCountUpdate={(c) => handleCountUpdate('marsSolarWeather', c)}
           />
         </GlobeViewer>
 
@@ -356,6 +464,8 @@ export default function App() {
         dataLayers={dataLayers}
         onToggleLayer={handleToggleLayer}
         layerCounts={layerCounts}
+        worldMode={worldMode}
+        scenes={activeScenes}
         selectedCity={selectedCity}
         selectedLandmark={selectedLandmark}
         onCityChange={handleCityChange}
@@ -369,12 +479,10 @@ export default function App() {
       {/* Right Sidebar */}
       <RightSidebar
         bloom={bloom}
-        sharpen={sharpen}
         themeMode={themeMode}
         hudVisible={hudVisible}
         cleanUI={cleanUI}
         onToggleBloom={() => setBloom(!bloom)}
-        onToggleSharpen={() => setSharpen(!sharpen)}
         onToggleHud={() => setHudVisible(!hudVisible)}
         onToggleCleanUI={() => setCleanUI(!cleanUI)}
         onToggleTheme={() => setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'))}
@@ -384,10 +492,12 @@ export default function App() {
       <StylePresets
         activeStyle={activeStyle}
         onStyleChange={setActiveStyle}
+        worldMode={worldMode}
+        onWorldModeChange={setWorldMode}
       />
 
       {/* CCTV Preview */}
-      {dataLayers.cctv && selectedCctv && (
+      {worldMode === 'earth' && dataLayers.cctv && selectedCctv && (
         <div className="glass-panel cctv-preview-panel" style={{
           position: 'absolute',
           zIndex: 60,
@@ -442,6 +552,49 @@ export default function App() {
               <>Live stream unavailable for this item.</>
             )}
             {(selectedCctv.streamUrl || selectedCctv.embedUrl) && 'Click another CCTV point to switch feed.'}
+          </div>
+        </div>
+      )}
+
+      {/* Mars Photo Preview */}
+      {worldMode === 'mars' && dataLayers.marsRovers && selectedMarsPhoto && (
+        <div className="glass-panel cctv-preview-panel" style={{
+          position: 'absolute',
+          zIndex: 60,
+          padding: 10,
+          pointerEvents: 'auto',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.5, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
+              MARS PHOTO: {selectedMarsPhoto.rover}
+            </div>
+            <button className="glass-btn" style={{ padding: '4px 8px', fontSize: 9 }} onClick={() => setSelectedMarsPhoto(null)}>
+              Close
+            </button>
+          </div>
+
+          {selectedMarsPhoto.imageUrl ? (
+            <img
+              src={selectedMarsPhoto.imageUrl}
+              alt={`${selectedMarsPhoto.rover} ${selectedMarsPhoto.camera}`}
+              style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--border-color)', background: '#000' }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: 180, borderRadius: 3, border: '1px solid var(--border-color)', background: '#000', display: 'grid', placeItems: 'center', fontSize: 10, color: 'var(--text-dim)' }}>
+              No preview image available
+            </div>
+          )}
+
+          <div style={{ marginTop: 6, fontSize: 9, color: 'var(--text-dim)' }}>
+            CAM {selectedMarsPhoto.camera} · SOL {selectedMarsPhoto.sol}
+            {selectedMarsPhoto.pageUrl && (
+              <>
+                {' '}
+                <a href={selectedMarsPhoto.pageUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>
+                  Open mission images
+                </a>
+              </>
+            )}
           </div>
         </div>
       )}

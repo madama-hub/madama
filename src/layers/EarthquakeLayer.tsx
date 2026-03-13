@@ -19,6 +19,10 @@ interface EarthquakeLayerProps {
     onCountUpdate: (count: number) => void;
 }
 
+interface EarthquakesApiResponse {
+    earthquakes?: EarthquakeData[];
+}
+
 export default function EarthquakeLayer({ visible, detectMode, onCountUpdate }: EarthquakeLayerProps) {
     const [quakes, setQuakes] = useState<EarthquakeData[]>([]);
 
@@ -31,19 +35,12 @@ export default function EarthquakeLayer({ visible, detectMode, onCountUpdate }: 
 
         const fetchQuakes = async () => {
             try {
-                const res = await fetch(API_ENDPOINTS.USGS_EARTHQUAKES);
-                const data = await res.json();
+                const res = await fetch(API_ENDPOINTS.EARTHQUAKE_EVENTS);
+                if (!res.ok) throw new Error('Earthquake backend unavailable');
+                const data = (await res.json()) as EarthquakesApiResponse;
 
-                if (data.features) {
-                    const parsed: EarthquakeData[] = data.features.map((f: any) => ({
-                        id: f.id,
-                        mag: f.properties.mag,
-                        place: f.properties.place,
-                        lat: f.geometry.coordinates[1],
-                        lng: f.geometry.coordinates[0],
-                        depth: f.geometry.coordinates[2],
-                        time: f.properties.time,
-                    }));
+                if (Array.isArray(data.earthquakes)) {
+                    const parsed = data.earthquakes;
                     setQuakes(parsed);
                     onCountUpdate(parsed.length);
                 }
@@ -56,7 +53,7 @@ export default function EarthquakeLayer({ visible, detectMode, onCountUpdate }: 
         };
 
         fetchQuakes();
-    }, [visible]);
+    }, [visible, onCountUpdate]);
 
     if (!visible) return null;
 

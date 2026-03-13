@@ -1,61 +1,60 @@
-import { Sparkles, Focus, Monitor, Eye, EyeOff, SunMoon } from 'lucide-react';
+import { Sparkles, Monitor, Eye, EyeOff, SunMoon } from 'lucide-react';
 
 interface RightSidebarProps {
     bloom: boolean;
-    sharpen: boolean;
     themeMode: 'dark' | 'light';
     hudVisible: boolean;
     cleanUI: boolean;
     onToggleBloom: () => void;
-    onToggleSharpen: () => void;
     onToggleHud: () => void;
     onToggleCleanUI: () => void;
     onToggleTheme: () => void;
 }
 
 export default function RightSidebar({
-    bloom, sharpen, themeMode, hudVisible, cleanUI,
-    onToggleBloom, onToggleSharpen, onToggleHud,
+    bloom, themeMode, hudVisible, cleanUI,
+    onToggleBloom, onToggleHud,
     onToggleCleanUI, onToggleTheme,
 }: RightSidebarProps) {
+    const darkModeActive = themeMode === 'dark';
+
     return (
         <div className="right-sidebar">
             <div className="glass-panel" style={{ padding: '8px 10px' }}>
                 <div style={{ fontSize: 8, letterSpacing: 2, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase' }}>MODE</div>
 
                 {/* Bloom */}
-                <button className={`glass-btn ${bloom ? 'active' : ''}`} onClick={onToggleBloom}>
+                <button className={`world-mode-btn mode-box-btn ${bloom ? 'active' : ''}`} onClick={onToggleBloom}>
                     <Sparkles size={12} /> Bloom
-                </button>
-
-                {/* Sharpen */}
-                <button
-                    className={`glass-btn ${sharpen ? 'active' : ''}`}
-                    onClick={onToggleSharpen}
-                    style={{ marginTop: 4 }}
-                >
-                    <Focus size={12} /> Sharpen
                 </button>
 
                 {/* HUD */}
                 <button
-                    className={`glass-btn ${hudVisible ? 'active' : ''}`}
+                    className={`world-mode-btn mode-box-btn ${!hudVisible ? 'active' : ''}`}
                     onClick={onToggleHud}
                     style={{ marginTop: 4 }}
                 >
                     <Monitor size={12} /> HUD
                 </button>
+
+                {/* Clean UI */}
+                <button
+                    className={`world-mode-btn mode-box-btn clean-ui-toggle ${cleanUI ? 'active' : ''}`}
+                    onClick={onToggleCleanUI}
+                    style={{ marginTop: 4 }}
+                >
+                    {cleanUI ? <EyeOff size={12} /> : <Eye size={12} />} Clean UI
+                </button>
+
+                {/* Theme mode */}
+                <button
+                    className={`world-mode-btn mode-box-btn ${darkModeActive ? 'active' : ''}`}
+                    onClick={onToggleTheme}
+                    style={{ marginTop: 4 }}
+                >
+                    <SunMoon size={12} /> Theme Dark
+                </button>
             </div>
-
-            {/* Clean UI */}
-            <button className={`glass-btn clean-ui-toggle ${cleanUI ? 'active' : ''}`} onClick={onToggleCleanUI}>
-                {cleanUI ? <EyeOff size={12} /> : <Eye size={12} />} Clean UI
-            </button>
-
-            {/* Theme mode */}
-            <button className="glass-btn" onClick={onToggleTheme}>
-                <SunMoon size={12} /> Theme: {themeMode === 'dark' ? 'Dark' : 'Light'}
-            </button>
         </div>
     );
 }

@@ -12,6 +12,8 @@ export interface CityData {
     landmarks: Landmark[];
 }
 
+export type WorldMode = 'earth' | 'moon' | 'mars';
+
 export const CITIES: CityData[] = [
     {
         name: 'Austin, TX',
@@ -95,6 +97,56 @@ export const CITIES: CityData[] = [
     },
 ];
 
+export const MOON_SCENES: CityData[] = [
+    {
+        name: 'Near Side',
+        landmarks: [
+            { name: 'Mare Tranquillitatis', lat: 8.5, lng: 31.4, alt: 1800000, pitch: -55 },
+            { name: 'Tycho Crater', lat: -43.3, lng: -11.2, alt: 1500000, pitch: -55 },
+            { name: 'Copernicus Crater', lat: 9.6, lng: -20.1, alt: 1200000, pitch: -55 },
+        ],
+    },
+    {
+        name: 'Polar Regions',
+        landmarks: [
+            { name: 'Shackleton Crater', lat: -89.9, lng: 0, alt: 1000000, pitch: -70 },
+            { name: 'Peary Crater', lat: 88.6, lng: 33.0, alt: 1000000, pitch: -70 },
+            { name: 'South Pole Ridge', lat: -88.8, lng: 45.0, alt: 1200000, pitch: -65 },
+        ],
+    },
+];
+
+export const MARS_SCENES: CityData[] = [
+    {
+        name: 'Volcanic Province',
+        landmarks: [
+            { name: 'Olympus Mons', lat: 18.65, lng: -133.8, alt: 2400000, pitch: -60 },
+            { name: 'Ascraeus Mons', lat: 11.8, lng: -104.0, alt: 1800000, pitch: -60 },
+            { name: 'Arsia Mons', lat: -8.4, lng: -120.1, alt: 1800000, pitch: -60 },
+        ],
+    },
+    {
+        name: 'Canyons & Basins',
+        landmarks: [
+            { name: 'Valles Marineris', lat: -14.0, lng: -59.0, alt: 1700000, pitch: -58 },
+            { name: 'Gale Crater', lat: -5.4, lng: 137.8, alt: 1500000, pitch: -58 },
+            { name: 'Jezero Crater', lat: 18.4, lng: 77.5, alt: 1400000, pitch: -58 },
+        ],
+    },
+];
+
+export const SCENES_BY_WORLD: Record<WorldMode, CityData[]> = {
+    earth: CITIES,
+    moon: MOON_SCENES,
+    mars: MARS_SCENES,
+};
+
+export const DATA_FEEDS_BY_WORLD: Record<WorldMode, string[]> = {
+    earth: ['OPENSKY', 'USGS', 'ABUSEIPDB', 'WEBCAMERA24', 'LOCAL TRAFFIC MODEL'],
+    moon: ['NASA IMAGE LIBRARY', 'LRO PDS', 'LUNAR PDS DATASETS', 'JPL HORIZONS', 'NAIF SPICE', 'ARTEMIS DATA', 'DONKI SPACE WEATHER'],
+    mars: ['NASA MARS ROVER PHOTOS', 'INSIGHT WEATHER', 'NASA IMAGE LIBRARY', 'PDS', 'JPL HORIZONS', 'DONKI'],
+};
+
 export const STYLE_PRESETS = [
     { id: 'normal', name: 'Normal', icon: '◯', key: '1' },
     { id: 'crt', name: 'CRT', icon: '◉', key: '2' },
@@ -112,46 +164,29 @@ export const CLASSIFICATION_MARKING = 'TOP SECRET // SI-TK // NOFORN';
 export const SYSTEM_ID = 'KH11-4084 OPS-4114';
 
 export const API_ENDPOINTS = {
+    BACKEND_HEALTH: '/api/v1/health',
+    FLIGHTS_EVENTS: '/api/v1/events/flights',
+    EARTHQUAKE_EVENTS: '/api/v1/events/earthquakes',
+    TRAFFIC_EVENTS: '/api/v1/events/traffic',
+    ALERTS_SUMMARY: '/api/v1/alerts/summary',
+    ALERTS: '/api/v1/alerts',
+    FEATURES_REGIONS: '/api/v1/features/regions',
+    PREDICT_ANOMALY: '/api/v1/predict/anomaly',
+    MODEL_METRICS: '/api/v1/model/metrics',
+    DDOS_EVENTS: '/api/v1/events/ddos',
     OPENSKY: 'https://opensky-network.org/api/states/all',
     CELESTRAK_TLE: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle',
     CELESTRAK_STATIONS: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle',
     USGS_EARTHQUAKES: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
-    ADSB_MILITARY: 'https://globe.adsbexchange.com/data/military.json',
+    ABUSEIPDB_BLACKLIST: 'https://api.abuseipdb.com/api/v2/blacklist',
+    NASA_MARS_ROVER_PHOTOS: 'https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos',
+    NASA_INSIGHT_WEATHER: 'https://api.nasa.gov/insight_weather/',
+    NASA_IMAGE_LIBRARY: 'https://images-api.nasa.gov/search',
+    NASA_PDS_SEARCH: 'https://pds.nasa.gov/services/search/search',
+    JPL_HORIZONS: 'https://ssd.jpl.nasa.gov/api/horizons.api',
+    NASA_DONKI_CME: 'https://api.nasa.gov/DONKI/CME',
+    NAIF_SPICE: 'https://naif.jpl.nasa.gov/naif/data.html',
 };
-
-// Simulated military flight data
-export function generateMilitaryFlights() {
-    const bases = [
-        { name: 'Pentagon', lat: 38.8719, lng: -77.0563 },
-        { name: 'Ramstein', lat: 49.4369, lng: 7.6003 },
-        { name: 'Kadena', lat: 26.3516, lng: 127.7692 },
-        { name: 'Diego Garcia', lat: -7.3133, lng: 72.4111 },
-        { name: 'Incirlik', lat: 37.0026, lng: 35.4259 },
-    ];
-
-    const flights: Array<{
-        id: string; callsign: string; lat: number; lng: number;
-        alt: number; heading: number; speed: number; type: string;
-    }> = [];
-
-    bases.forEach((base, bi) => {
-        for (let i = 0; i < 8; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * 5 + 0.5;
-            flights.push({
-                id: `MIL-${bi * 10 + i}`,
-                callsign: `RCH${String(100 + bi * 10 + i)}`,
-                lat: base.lat + Math.cos(angle) * dist,
-                lng: base.lng + Math.sin(angle) * dist,
-                alt: 25000 + Math.random() * 15000,
-                heading: Math.random() * 360,
-                speed: 300 + Math.random() * 300,
-                type: ['C-17', 'C-130', 'KC-135', 'B-52', 'F-16', 'E-3'][Math.floor(Math.random() * 6)],
-            });
-        }
-    });
-    return flights;
-}
 
 // Simulated CCTV data (Austin, TX)
 export const CCTV_CAMERAS = [

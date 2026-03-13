@@ -1,22 +1,38 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Plus, Minus, Satellite, Plane, Shield, Car, Video, Activity } from 'lucide-react';
+import { Plus, Minus, Plane, Car, Video, Activity, AlertTriangle, Camera, Thermometer, ImageIcon, FlaskConical, Orbit, SunMedium, Moon, Mountain, Database, Rocket, Radar } from 'lucide-react';
 import LocationPanel from './LocationPanel';
 import AIInsightsPanel from './AIInsightsPanel';
+import { DATA_FEEDS_BY_WORLD } from '../utils/constants';
+import type { CityData, WorldMode } from '../utils/constants';
 
 export interface DataLayerState {
-    satellites: boolean;
     flights: boolean;
-    military: boolean;
     traffic: boolean;
     cctv: boolean;
     earthquakes: boolean;
+    ddos: boolean;
+    moonMedia: boolean;
+    moonLro: boolean;
+    moonScience: boolean;
+    moonOrbiters: boolean;
+    moonSpice: boolean;
+    moonArtemis: boolean;
+    moonSolarWeather: boolean;
+    marsRovers: boolean;
+    marsWeather: boolean;
+    marsMedia: boolean;
+    marsScience: boolean;
+    marsOrbiters: boolean;
+    marsSolarWeather: boolean;
 }
 
 interface LeftSidebarProps {
     dataLayers: DataLayerState;
     onToggleLayer: (layer: keyof DataLayerState) => void;
     layerCounts: Record<string, number>;
+    worldMode: WorldMode;
+    scenes: CityData[];
     selectedCity: number;
     selectedLandmark: number;
     onCityChange: (index: number) => void;
@@ -27,10 +43,20 @@ interface LeftSidebarProps {
     cleanUI: boolean;
 }
 
+type LayerOption = {
+    key: keyof DataLayerState;
+    label: string;
+    icon: ReactNode;
+    color: string;
+    description?: string;
+};
+
 export default function LeftSidebar({
     dataLayers,
     onToggleLayer,
     layerCounts,
+    worldMode,
+    scenes,
     selectedCity,
     selectedLandmark,
     onCityChange,
@@ -46,18 +72,37 @@ export default function LeftSidebar({
         setExpandedSection(expandedSection === section ? null : section);
     };
 
-    const layers: Array<{ key: keyof DataLayerState; label: string; icon: ReactNode; color: string }> = [
-        { key: 'satellites', label: 'Satellites', icon: <Satellite size={12} />, color: '#00f0ff' },
+    const earthLayers: LayerOption[] = [
         { key: 'flights', label: 'Flights', icon: <Plane size={12} />, color: '#00ff88' },
-        { key: 'military', label: 'Military', icon: <Shield size={12} />, color: '#ff6c00' },
         { key: 'traffic', label: 'Traffic', icon: <Car size={12} />, color: '#ffee00' },
-        { key: 'cctv', label: 'CCTV', icon: <Video size={12} />, color: '#ff2244' },
+        { key: 'cctv', label: 'CCTV', icon: <Video size={12} />, color: '#ff2244', description: 'visual context only' },
         { key: 'earthquakes', label: 'Seismic', icon: <Activity size={12} />, color: '#ff44aa' },
+        { key: 'ddos', label: 'DDoS', icon: <AlertTriangle size={12} />, color: '#ff335f' },
     ];
+
+    const marsLayers: LayerOption[] = [
+        { key: 'marsRovers', label: 'Rover Photos', icon: <Camera size={12} />, color: '#ff8a4d' },
+        { key: 'marsWeather', label: 'Mars Weather', icon: <Thermometer size={12} />, color: '#53d8fb' },
+        { key: 'marsMedia', label: 'NASA Media', icon: <ImageIcon size={12} />, color: '#ffc857' },
+        { key: 'marsScience', label: 'PDS Science', icon: <FlaskConical size={12} />, color: '#90be6d' },
+        { key: 'marsOrbiters', label: 'JPL Horizons', icon: <Orbit size={12} />, color: '#b388eb' },
+        { key: 'marsSolarWeather', label: 'DONKI Solar', icon: <SunMedium size={12} />, color: '#f94144' },
+    ];
+
+    const moonLayers: LayerOption[] = [
+        { key: 'moonMedia', label: 'NASA Moon Media', icon: <Moon size={12} />, color: '#9ad4ff' },
+        { key: 'moonLro', label: 'LRO Terrain', icon: <Mountain size={12} />, color: '#7fb7ff' },
+        { key: 'moonScience', label: 'Lunar PDS Science', icon: <Database size={12} />, color: '#b8e1ff' },
+        { key: 'moonOrbiters', label: 'JPL Horizons', icon: <Orbit size={12} />, color: '#c9b6ff' },
+        { key: 'moonSpice', label: 'NAIF SPICE', icon: <Radar size={12} />, color: '#8bd3dd' },
+        { key: 'moonArtemis', label: 'Artemis Mission', icon: <Rocket size={12} />, color: '#ffd6a5' },
+        { key: 'moonSolarWeather', label: 'DONKI Weather', icon: <SunMedium size={12} />, color: '#f9c74f' },
+    ];
+
+    const layers = worldMode === 'mars' ? marsLayers : worldMode === 'moon' ? moonLayers : earthLayers;
 
     return (
         <div className="left-sidebar">
-            {/* Data Feed Section */}
             <div className="sidebar-section">
                 <span className="sidebar-section-label">Data Feed</span>
                 <button className="expand-btn" onClick={() => toggleSection('feed')}>
@@ -67,7 +112,7 @@ export default function LeftSidebar({
             {expandedSection === 'feed' && (
                 <div className="glass-panel" style={{ marginLeft: 0, minWidth: 180 }}>
                     <div style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: 1, marginBottom: 8 }}>LIVE CONNECTIONS</div>
-                    {['CELESTRAK', 'OPENSKY', 'USGS', 'ADSB-X'].map((feed) => (
+                    {DATA_FEEDS_BY_WORLD[worldMode].map((feed) => (
                         <div key={feed} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 9, color: 'var(--text-secondary)' }}>
                             <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 6px rgba(0,255,136,0.5)' }} />
                             {feed}
@@ -76,7 +121,6 @@ export default function LeftSidebar({
                 </div>
             )}
 
-            {/* Data Layers Section */}
             <div className="sidebar-section">
                 <span className="sidebar-section-label">Data Layers</span>
                 <button className="expand-btn" onClick={() => toggleSection('layers')}>
@@ -85,19 +129,22 @@ export default function LeftSidebar({
             </div>
             {expandedSection === 'layers' && (
                 <div className="glass-panel data-layers-panel">
-                    {layers.map(({ key, label, icon, color }) => (
+                    {layers.map(({ key, label, icon, color, description }) => (
                         <div
                             key={key}
-                            className="layer-toggle"
+                            className={`layer-toggle ${dataLayers[key] ? 'active' : ''}`}
                             onClick={() => onToggleLayer(key)}
                         >
-                            <div className="layer-toggle-name">
-                                <div
-                                    className={`layer-toggle-dot ${dataLayers[key] ? 'active' : ''}`}
-                                    style={dataLayers[key] ? { background: color, boxShadow: `0 0 8px ${color}60` } : {}}
-                                />
-                                {icon}
-                                {label}
+                            <div>
+                                <div className="layer-toggle-name">
+                                    <div
+                                        className={`layer-toggle-dot ${dataLayers[key] ? 'active' : ''}`}
+                                        style={dataLayers[key] ? { background: color, boxShadow: `0 0 8px ${color}60` } : {}}
+                                    />
+                                    {icon}
+                                    {label}
+                                </div>
+                                {description && <div className="layer-toggle-description">{description}</div>}
                             </div>
                             <span className="layer-toggle-count">
                                 {layerCounts[key] || 0}
@@ -107,7 +154,6 @@ export default function LeftSidebar({
                 </div>
             )}
 
-            {/* Scenes Section */}
             <div className="sidebar-section">
                 <span className="sidebar-section-label">Scenes</span>
                 <button className="expand-btn" onClick={() => toggleSection('scenes')}>
@@ -116,19 +162,17 @@ export default function LeftSidebar({
             </div>
             {expandedSection === 'scenes' && (
                 <div className="glass-panel" style={{ minWidth: 180 }}>
-                    <div>
-                        <LocationPanel
-                            selectedCity={selectedCity}
-                            selectedLandmark={selectedLandmark}
-                            onCityChange={onCityChange}
-                            onLandmarkChange={onLandmarkChange}
-                            compact
-                        />
-                    </div>
+                    <LocationPanel
+                        scenes={scenes}
+                        selectedCity={selectedCity}
+                        selectedLandmark={selectedLandmark}
+                        onCityChange={onCityChange}
+                        onLandmarkChange={onLandmarkChange}
+                        compact
+                    />
                 </div>
             )}
 
-            {/* AI Insights Section */}
             <div className="sidebar-section">
                 <span className="sidebar-section-label">AI Insights</span>
                 <button className="expand-btn" onClick={() => toggleSection('insights')}>
@@ -144,6 +188,7 @@ export default function LeftSidebar({
                         locationName={locationName}
                         landmarkName={landmarkName}
                         cleanUI={cleanUI}
+                        worldMode={worldMode}
                         compact
                     />
                 </div>

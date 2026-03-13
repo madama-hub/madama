@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Entity, PointGraphics } from 'resium';
 import { Cartesian3, Color, NearFarScalar } from 'cesium';
+import { API_ENDPOINTS } from '../utils/constants';
 
 interface TrafficLayerProps {
     visible: boolean;
@@ -18,6 +19,10 @@ interface TrafficParticle {
     speed: number;
 }
 
+interface TrafficApiResponse {
+    traffic?: TrafficParticle[];
+}
+
 export default function TrafficLayer({ visible, centerLat, centerLng, onCountUpdate }: TrafficLayerProps) {
     const [particles, setParticles] = useState<TrafficParticle[]>([]);
     const animFrameRef = useRef<number>(0);
@@ -29,23 +34,39 @@ export default function TrafficLayer({ visible, centerLat, centerLng, onCountUpd
             return;
         }
 
-        // Generate road-following particles
-        const count = 80;
-        const newParticles: TrafficParticle[] = [];
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * 0.015;
-            newParticles.push({
-                id: i,
-                lat: centerLat + Math.cos(angle) * dist,
-                lng: centerLng + Math.sin(angle) * dist,
-                dLat: (Math.random() - 0.5) * 0.00003,
-                dLng: (Math.random() - 0.5) * 0.00003,
-                speed: 0.5 + Math.random() * 1.5,
-            });
-        }
-        setParticles(newParticles);
-        onCountUpdate(count);
+        const loadTraffic = async () => {
+            try {
+                const params = new URLSearchParams({
+                    center_lat: String(centerLat),
+                    center_lng: String(centerLng),
+                });
+                const response = await fetch(`${API_ENDPOINTS.TRAFFIC_EVENTS}?${params.toString()}`);
+                if (!response.ok) throw new Error('Traffic backend unavailable');
+                const payload = (await response.json()) as TrafficApiResponse;
+                const nextParticles = Array.isArray(payload.traffic) ? payload.traffic : [];
+                setParticles(nextParticles);
+                onCountUpdate(nextParticles.length);
+            } catch {
+                const count = 80;
+                const fallbackParticles: TrafficParticle[] = [];
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * 0.015;
+                    fallbackParticles.push({
+                        id: i,
+                        lat: centerLat + Math.cos(angle) * dist,
+                        lng: centerLng + Math.sin(angle) * dist,
+                        dLat: (Math.random() - 0.5) * 0.00003,
+                        dLng: (Math.random() - 0.5) * 0.00003,
+                        speed: 0.5 + Math.random() * 1.5,
+                    });
+                }
+                setParticles(fallbackParticles);
+                onCountUpdate(fallbackParticles.length);
+            }
+        };
+
+        loadTraffic();
 
         // Animate particles
         const animate = () => {
@@ -73,7 +94,7 @@ export default function TrafficLayer({ visible, centerLat, centerLng, onCountUpd
 
         animFrameRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(animFrameRef.current);
-    }, [visible, centerLat, centerLng]);
+    }, [visible, centerLat, centerLng, onCountUpdate]);
 
     if (!visible) return null;
 
